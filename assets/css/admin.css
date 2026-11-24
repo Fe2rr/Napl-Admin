@@ -1353,3 +1353,22 @@ button {
     width: auto;
   }
 }
+
+
+/* Community dashboard */
+.community-modal-card { width: min(1100px, calc(100vw - 24px)); }
+.community-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; }
+.community-card { border:1px solid var(--line); border-radius:8px; background:#0d1a17; padding:12px 14px; }
+.community-card span { display:block; color:var(--muted); font-size:10px; margin-bottom:6px; }
+.community-card strong { display:block; font-size:19px; color:var(--text); }
+.community-section { margin-top:18px; }
+.community-section h3 { font:700 14px "Outfit",sans-serif; margin:0 0 9px; color:var(--text); }
+.community-table-wrap { max-height:260px; overflow:auto; border:1px solid var(--line); border-radius:8px; background:#0d1a17; }
+.community-table { width:100%; border-collapse:collapse; font-size:11px; }
+.community-table th,.community-table td { text-align:left; vertical-align:top; padding:8px 10px; border-bottom:1px solid rgba(41,65,59,.65); overflow-wrap:anywhere; }
+.community-table th { position:sticky; top:0; background:#142620; color:#9bb9a9; font-weight:700; }
+.community-table td { color:var(--text); }
+.community-table a { color:#9ce7b9; }
+.community-muted { color:var(--muted); font-size:12px; }
+.community-error { color:#fca5a5; font-size:12px; }
+@media(max-width:640px) { .community-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } .community-table { min-width:560px; } }
