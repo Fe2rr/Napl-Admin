@@ -17,3 +17,8 @@ El repositorio quedó conectado a Cloudflare Pages. Está actualmente público y
 En Cloudflare Worker `napl-admin-api`, configurar `ADMIN_ORIGIN` con el dominio exacto de Pages, además de conservar `ADMIN_PASSWORD`, `SESSION_SECRET` y `GITHUB_TOKEN`.
 
 El panel no altera el frontend público de NAPL. La función `supabase/functions/admin-dashboard/index.ts` lee reportes, compatibilidad, ratings y visitas solo después de validar el token de sesión contra el Worker.
+
+## Secretos pendientes para publicación automática
+En el Worker `napl-admin-api` agregar el secreto `CATALOG_DATA_GITHUB_TOKEN`: Fine-grained PAT con acceso **Contents: Read and write** únicamente al repositorio privado `Fe2rr/NAPL-Data`. El secreto existente `GITHUB_TOKEN` se conserva para el respaldo actual en `Fe2rr/Napl-prueba`.
+
+Sin `CATALOG_DATA_GITHUB_TOKEN`, el guardado en D1 y el respaldo actual siguen funcionando, pero el panel marca la publicación estática de Pages como pendiente.
