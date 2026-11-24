@@ -217,9 +217,9 @@ function updateTopState() {
     label.textContent = "Cambios locales sin guardar…";
   } else if (stats.pendingGitHubSync) {
     dot.classList.add("pending");
-    label.textContent = "Guardado en D1 · Pendiente backup GitHub";
+    label.textContent = "Guardado en D1 · Pendiente publicación en Pages";
   } else {
-    label.textContent = "Sincronizado (D1 + GitHub)";
+    label.textContent = "Sincronizado (D1 + GitHub + Pages)";
   }
 
   publishBtn.disabled = savingInFlight || !stats.pendingGitHubSync;
@@ -777,9 +777,11 @@ async function saveCurrentGame({ silent = false } = {}) {
     renderSidebar();
     if (!silent) {
       if (data.publishError) {
-        setNotice("Juego guardado en D1, pero GitHub no pudo actualizarse: " + data.publishError + ". Podés reintentar con «Publicar en GitHub».", "error");
+        setNotice("Juego guardado en D1, pero el respaldo GitHub falló: " + data.publishError, "error");
+      } else if (data.dataPublishError) {
+        setNotice("Juego guardado y respaldado en Napl-prueba, pero Pages quedó pendiente: " + data.dataPublishError + ". Configurá CATALOG_DATA_GITHUB_TOKEN y reintentá la publicación.", "error");
       } else {
-        setNotice("Juego guardado y catálogo publicado en GitHub.", "success");
+        setNotice("Juego guardado y catálogo publicado en GitHub y Pages.", "success");
       }
     }
   } catch (error) {
@@ -1508,7 +1510,7 @@ $("import-button").addEventListener("click", async () => {
     renderSidebar();
     renderEditor();
     setNotice(
-      `CSV importado a D1: ${result.summary.games} juegos · ${result.summary.ports} ports. Podés publicar el respaldo en GitHub cuando quieras.`,
+      `CSV importado a D1: ${result.summary.games} juegos · ${result.summary.ports} ports. Ejecutá «Publicar catálogo» para actualizar el snapshot estático.`,
       "success"
     );
   } catch (error) {
@@ -1545,10 +1547,12 @@ $("publish-button").addEventListener("click", async () => {
     hydrateServerState(result, true);
     unsavedGame = false;
     updateTopState();
-    const msg = result.commit
-      ? "Respaldo publicado en GitHub correctamente."
-      : "Catálogo JSON local sincronizado desde la base de datos.";
-    setNotice(msg, "success");
+    const msg = result.dataPublishError
+      ? "Respaldo en Napl-prueba actualizado; Pages sigue pendiente: " + result.dataPublishError
+      : result.commit || result.dataCommit
+        ? "Catálogo publicado correctamente en GitHub y Pages."
+        : "El catálogo ya estaba actualizado; no se creó un commit innecesario.";
+    setNotice(msg, result.dataPublishError ? "error" : "success");
     if (result.commit) {
       const a = document.createElement("a");
       a.href = result.commit;
@@ -1664,6 +1668,10 @@ async function init() {
       $("login-message").textContent =
         "El backend todavía necesita configurar ADMIN_PASSWORD, SESSION_SECRET y el binding D1 (DB) en Cloudflare.";
       return;
+    } else if (!health.configured?.dataGithubToken) {
+      const hint = $("login-hint");
+      hint.textContent = "La publicación estática está pendiente: falta el secreto CATALOG_DATA_GITHUB_TOKEN en Cloudflare.";
+      hint.hidden = false;
     }
   } catch {
     $("login-message").textContent = "No se pudo conectar con el backend de administración.";
