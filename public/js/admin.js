@@ -1548,7 +1548,7 @@ $("publish-button").addEventListener("click", async () => {
     unsavedGame = false;
     updateTopState();
     const msg = result.dataPublishError
-      ? "Respaldo en Napl-prueba actualizado; Pages sigue pendiente: " + result.dataPublishError
+      ? "Publicación pendiente: " + result.dataPublishError
       : result.commit || result.dataCommit
         ? "Catálogo publicado correctamente en GitHub y Pages."
         : "El catálogo ya estaba actualizado; no se creó un commit innecesario.";
