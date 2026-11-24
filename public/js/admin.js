@@ -1584,6 +1584,15 @@ window.addEventListener("beforeunload", (event) => {
 });
 
 
+function safeCommunityUrl(value) {
+  try {
+    const url = new URL(String(value || ""));
+    return url.protocol === "https:" || url.protocol === "http:" ? url.href : "";
+  } catch {
+    return "";
+  }
+}
+
 async function loadCommunityDashboard() {
   const modal = $("community-modal");
   const loading = $("community-loading");
@@ -1627,7 +1636,7 @@ async function loadCommunityDashboard() {
     };
     $("community-link-reports").innerHTML = table(
       ["Port","Motivo","Nota","URL","Fecha"],
-      (data.reports || []).map(r=>`<tr><td>${esc(r.port_id)}</td><td>${esc(r.reason)}</td><td>${esc(r.note || "—")}</td><td>${r.url ? `<a href="${esc(r.url)}" target="_blank" rel="noopener">Abrir</a>` : "—"}</td><td>${esc(formatShortDate(r.created_at))}</td></tr>`),
+      (data.reports || []).map(r=>{ const url=safeCommunityUrl(r.url); return `<tr><td>${esc(r.port_id)}</td><td>${esc(r.reason)}</td><td>${esc(r.note || "—")}</td><td>${url ? `<a href="${esc(url)}" target="_blank" rel="noopener noreferrer">Abrir</a>` : "—"}</td><td>${esc(formatShortDate(r.created_at))}</td></tr>`; }),
       "No hay reportes de enlaces."
     );
     $("community-compat-reports").innerHTML = table(
