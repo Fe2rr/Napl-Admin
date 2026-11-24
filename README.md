@@ -13,7 +13,7 @@ Panel administrativo independiente de NAPL.
 Cloudflare Pages debe publicar la raíz del repositorio, sin comando de build y con rama `main`.
 
 ## Seguridad pendiente de configuración
-Este repositorio debe configurarse como **privado** antes de conectar Pages.
+El repositorio quedó conectado a Cloudflare Pages. Está actualmente público y debe cambiarse a **privado** desde GitHub antes de usar el panel con datos reales; la interfaz no contiene secretos y el Worker valida cada sesión.
 En Cloudflare Worker `napl-admin-api`, configurar `ADMIN_ORIGIN` con el dominio exacto de Pages, además de conservar `ADMIN_PASSWORD`, `SESSION_SECRET` y `GITHUB_TOKEN`.
 
-El panel no altera el frontend público de NAPL.
+El panel no altera el frontend público de NAPL. La función `supabase/functions/admin-dashboard/index.ts` lee reportes, compatibilidad, ratings y visitas solo después de validar el token de sesión contra el Worker.
