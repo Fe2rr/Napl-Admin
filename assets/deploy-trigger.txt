@@ -1,1 +1,0 @@
-NAPL Admin static deployment trigger.
