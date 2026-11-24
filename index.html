@@ -36,6 +36,7 @@
       <div class="topbar-actions">
         <button id="sync-github-button" class="button secondary" type="button">Sincronizar fuentes</button>
         <button id="import-button" class="button secondary" type="button">Importar CSV</button>
+        <button id="community-button" class="button secondary" type="button">Comunidad</button>
         <button id="download-button" class="button secondary" type="button">Descargar JSON</button>
         <button id="publish-button" class="button secondary" type="button" disabled>Reintentar publicación</button>
         <button id="logout-button" class="button quiet" type="button">Salir</button>
@@ -118,6 +119,28 @@
       <div class="sync-history-section">
         <h3>Historial reciente</h3>
         <div id="sync-history-list" class="sync-history-list"></div>
+      </div>
+    </div>
+  </dialog>
+
+
+  <dialog id="community-modal" class="sync-modal" aria-labelledby="community-modal-title">
+    <div class="sync-modal-card community-modal-card">
+      <div class="sync-modal-header">
+        <div>
+          <span class="editor-eyebrow">DATOS DE LA COMUNIDAD</span>
+          <h2 id="community-modal-title">Visitas, reportes y ratings</h2>
+        </div>
+        <button id="close-community-modal" class="button quiet" type="button" aria-label="Cerrar">✕</button>
+      </div>
+      <p id="community-loading" class="community-muted">Consultando estadísticas y registros…</p>
+      <p id="community-error" class="community-error" role="alert" hidden></p>
+      <div id="community-content" hidden>
+        <div id="community-overview" class="community-grid"></div>
+        <section class="community-section"><h3>Reportes de enlaces</h3><div id="community-link-reports" class="community-table-wrap"></div></section>
+        <section class="community-section"><h3>Reportes de compatibilidad</h3><div id="community-compat-reports" class="community-table-wrap"></div></section>
+        <section class="community-section"><h3>Ratings recientes</h3><div id="community-ratings" class="community-table-wrap"></div></section>
+        <section class="community-section"><h3>Juegos más visitados</h3><div id="community-visits" class="community-table-wrap"></div></section>
       </div>
     </div>
   </dialog>
