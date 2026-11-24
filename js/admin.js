@@ -1579,6 +1579,80 @@ window.addEventListener("beforeunload", (event) => {
   }
 });
 
+
+async function loadCommunityDashboard() {
+  const modal = $("community-modal");
+  const loading = $("community-loading");
+  const errorBox = $("community-error");
+  const content = $("community-content");
+  if (!modal.open) modal.showModal();
+  loading.hidden = false;
+  errorBox.hidden = true;
+  content.hidden = true;
+  try {
+    const response = await fetch("https://gsksanvcdbdoevairzpj.supabase.co/functions/v1/admin-dashboard", {
+      method: "GET",
+      headers: { Authorization: "Bearer " + token },
+      cache: "no-store",
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || !data.success) {
+      if (response.status === 401) {
+        token = "";
+        sessionStorage.removeItem("napl_admin_session");
+        showLogin();
+      }
+      throw new Error(data.error || "No se pudieron cargar los datos de la comunidad.");
+    }
+    const totals = data.totals || {};
+    const cards = [
+      ["Visitas acumuladas", Number(totals.allTimeVisits || 0).toLocaleString("es-UY")],
+      ["Reportes de enlaces", Number(totals.linkReports || 0).toLocaleString("es-UY")],
+      ["Reportes de compatibilidad", Number(totals.compatibilityReports || 0).toLocaleString("es-UY")],
+      ["Votos / ratings", Number(totals.ratingVotes || 0).toLocaleString("es-UY")],
+      ["Visitas esta semana", Number(totals.weekVisits || 0).toLocaleString("es-UY")],
+      ["Visitas este mes", Number(totals.monthVisits || 0).toLocaleString("es-UY")],
+    ];
+    $("community-overview").innerHTML = cards.map(([label,value]) =>
+      `<article class="community-card"><span>${esc(label)}</span><strong class="tabular">${esc(value)}</strong></article>`
+    ).join("");
+
+    const table = (headers, rows, empty) => {
+      if (!rows.length) return `<p class="community-muted">${esc(empty)}</p>`;
+      return `<table class="community-table"><thead><tr>${headers.map(h=>`<th>${esc(h)}</th>`).join("")}</tr></thead><tbody>${rows.join("")}</tbody></table>`;
+    };
+    $("community-link-reports").innerHTML = table(
+      ["Port","Motivo","Nota","URL","Fecha"],
+      (data.reports || []).map(r=>`<tr><td>${esc(r.port_id)}</td><td>${esc(r.reason)}</td><td>${esc(r.note || "—")}</td><td>${r.url ? `<a href="${esc(r.url)}" target="_blank" rel="noopener">Abrir</a>` : "—"}</td><td>${esc(formatShortDate(r.created_at))}</td></tr>`),
+      "No hay reportes de enlaces."
+    );
+    $("community-compat-reports").innerHTML = table(
+      ["Port","Dispositivo","Estado","Funciona","Fecha"],
+      (data.compatibility || []).map(r=>`<tr><td>${esc(r.port_id)}</td><td>${esc(r.device_name || r.device_id)}</td><td>${esc(r.status || "—")}</td><td>${r.works ? "Sí" : "No"}</td><td>${esc(formatShortDate(r.updated_at))}</td></tr>`),
+      "No hay reportes de compatibilidad."
+    );
+    $("community-ratings").innerHTML = table(
+      ["Port","Estrellas","Fecha"],
+      (data.ratings || []).map(r=>`<tr><td>${esc(r.port_id)}</td><td>${"★".repeat(Math.max(0,Math.min(5,Number(r.stars)||0)))}</td><td>${esc(formatShortDate(r.created_at))}</td></tr>`),
+      "No hay votos registrados."
+    );
+    $("community-visits").innerHTML = table(
+      ["Juego","Total","Semana","Mes"],
+      (data.popularity || []).slice(0,50).map(r=>`<tr><td>${esc(r.game_key)}</td><td class="tabular">${Number(r.all_time_visits||0).toLocaleString("es-UY")}</td><td class="tabular">${Number(r.week_visits||0).toLocaleString("es-UY")}</td><td class="tabular">${Number(r.month_visits||0).toLocaleString("es-UY")}</td></tr>`),
+      "No hay datos de visitas."
+    );
+    loading.hidden = true;
+    content.hidden = false;
+  } catch (err) {
+    loading.hidden = true;
+    errorBox.textContent = err.message || "Error consultando los datos.";
+    errorBox.hidden = false;
+  }
+}
+
+$("community-button").addEventListener("click", loadCommunityDashboard);
+$("close-community-modal").addEventListener("click", () => $("community-modal").close());
+
 async function init() {
   try {
     const health = await fetch(API + "/api/health").then((r) => r.json());
