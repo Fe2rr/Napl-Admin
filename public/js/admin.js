@@ -211,15 +211,15 @@ function updateTopState() {
   dot.classList.remove("pending", "saving");
   if (savingInFlight) {
     dot.classList.add("saving");
-    label.textContent = "Guardando en D1…";
+    label.textContent = "Guardando cambios…";
   } else if (unsavedGame) {
     dot.classList.add("pending");
     label.textContent = "Cambios locales sin guardar…";
   } else if (stats.pendingGitHubSync) {
     dot.classList.add("pending");
-    label.textContent = "Guardado en D1 · Pendiente publicación en Pages";
+    label.textContent = "Guardado · Pendiente de publicar snapshot en Pages";
   } else {
-    label.textContent = "Sincronizado (D1 + GitHub + Pages)";
+    label.textContent = "Sincronizado (JSON privado + snapshot público)";
   }
 
   publishBtn.disabled = savingInFlight || !stats.pendingGitHubSync;
@@ -677,7 +677,7 @@ function renderEditor() {
     : "";
 
   root.innerHTML =
-    '<div class="editor-heading"><div><span class="editor-eyebrow">NAPL / D1 / EDICIÓN DIRECTA</span><h1>' +
+    '<div class="editor-heading"><div><span class="editor-eyebrow">NAPL / JSON / EDICIÓN</span><h1>' +
     esc(game.name || "Nuevo juego") +
     "</h1><p>" +
     esc(game.slug) +
@@ -777,7 +777,7 @@ async function saveCurrentGame({ silent = false } = {}) {
     renderSidebar();
     if (!silent) {
       if (data.publishError) {
-        setNotice("Juego guardado en D1, pero el respaldo GitHub falló: " + data.publishError, "error");
+        setNotice("Juego guardado, pero falló el respaldo GitHub: " + data.publishError, "error");
       } else if (data.dataPublishError) {
         setNotice("Juego guardado y respaldado en Napl-prueba, pero Pages quedó pendiente: " + data.dataPublishError + ". Configurá CATALOG_DATA_GITHUB_TOKEN y reintentá la publicación.", "error");
       } else {
@@ -1496,7 +1496,7 @@ $("run-sync-batch").addEventListener("click", () => runBatchSync(false));
 $("run-sync-all").addEventListener("click", () => runBatchSync(true));
 
 $("import-button").addEventListener("click", async () => {
-  if (!confirm("Se importará la hoja CSV oficial hacia D1 reemplazando el catálogo actual. ¿Continuar?")) {
+  if (!confirm("Se importará la hoja CSV oficial y reemplazará el catálogo operativo actual. ¿Continuar?")) {
     return;
   }
   const btn = $("import-button");
@@ -1510,7 +1510,7 @@ $("import-button").addEventListener("click", async () => {
     renderSidebar();
     renderEditor();
     setNotice(
-      `CSV importado a D1: ${result.summary.games} juegos · ${result.summary.ports} ports. Ejecutá «Publicar catálogo» para actualizar el snapshot estático.`,
+      `CSV importado: ${result.summary.games} juegos · ${result.summary.ports} ports. Ejecutá «Publicar catálogo» para actualizar el snapshot estático.`,
       "success"
     );
   } catch (error) {
@@ -1536,7 +1536,7 @@ $("publish-button").addEventListener("click", async () => {
     setNotice("Guardá los cambios antes de publicar el catálogo.", "error");
     return;
   }
-  if (!confirm("Se sincronizará la instantánea de D1 hacia catalog.json en GitHub/respaldo. ¿Continuar?")) {
+  if (!confirm("Se sincronizará el catálogo operativo hacia catalog.json en GitHub y se actualizará el snapshot público. ¿Continuar?")) {
     return;
   }
   const btn = $("publish-button");
@@ -1671,11 +1671,11 @@ async function init() {
     const health = await fetch(API + "/api/health").then((r) => r.json());
     if (health.localMode && !health.hasCustomPassword) {
       const hint = $("login-hint");
-      hint.textContent = "Vista previa local activa (SQLite D1-parity). Contraseña por defecto: admin";
+      hint.textContent = "Vista previa local activa (SQLite local). Contraseña por defecto: admin";
       hint.hidden = false;
     } else if (!health.configured?.adminPassword || !health.configured?.sessionSecret) {
       $("login-message").textContent =
-        "El backend todavía necesita configurar ADMIN_PASSWORD, SESSION_SECRET y el binding D1 (DB) en Cloudflare.";
+        "El backend todavía necesita configurar ADMIN_PASSWORD y SESSION_SECRET en Cloudflare.";
       return;
     } else if (!health.configured?.dataGithubToken) {
       const hint = $("login-hint");
