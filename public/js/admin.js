@@ -782,13 +782,7 @@ async function saveCurrentGame({ silent = false } = {}) {
     updateTopState();
     renderSidebar();
     if (!silent) {
-      if (data.publishError) {
-        setNotice("Juego guardado, pero falló el respaldo GitHub: " + data.publishError, "error");
-      } else if (data.dataPublishError) {
-        setNotice("Juego guardado y respaldado en Napl-prueba, pero Pages quedó pendiente: " + data.dataPublishError + ". Configurá CATALOG_DATA_GITHUB_TOKEN y reintentá la publicación.", "error");
-      } else {
-        setNotice("Juego guardado y catálogo publicado en GitHub y Pages.", "success");
-      }
+      setNotice("Cambios guardados en el catálogo privado. La web pública queda pendiente de publicar.", "success");
     }
   } catch (error) {
     setNotice("No se pudo guardar en DB: " + error.message, "error");
