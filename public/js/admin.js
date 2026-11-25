@@ -1397,70 +1397,67 @@ async function runBatchSync(allBatches = false) {
   liveBox.hidden = true;
   progressWrap.hidden = false;
 
-  let offset = 0;
-  let totalChecked = 0;
-  let totalUpdated = 0;
-  let totalDown = 0;
-
   try {
-    if (allBatches) {
-      const previous = await api("/api/sync-stage");
-      if (previous.stage?.status === "completed") {
-        await refreshSyncStage();
-        progressText.textContent = "La revisión ya está completa. Aplicá las actualizaciones detectadas.";
-        return;
-      }
-      if (previous.stage?.status === "scanning") offset = Number(previous.stage.nextOffset || 0);
-    }
-    do {
-      progressText.textContent = allBatches
-        ? `Revisando fuentes (GitHub, GitLab y Play Store) desde #${offset + 1}…`
-        : "Revisando lote de 20 fuentes más antiguas…";
+    if (!allBatches) {
       const res = await api("/api/sync-sources", {
         method: "POST",
-        body: JSON.stringify({
-          limit: allBatches ? 5 : 20,
-          offset,
-          useOffset: allBatches,
-          stageOnly: allBatches,
-        }),
+        body: JSON.stringify({ limit: 20, compact: true }),
       });
-      if (!allBatches) hydrateServerState(res, true);
-      const s = res.sync;
-      totalChecked += s.checkedCount;
-      totalUpdated += s.updatedCount;
-      totalDown += s.downCount;
-      offset = s.nextOffset;
-
-      const totalPorts = s.totalSyncPorts ?? s.totalGithubPorts;
-      const pct = totalPorts
-        ? Math.min(100, Math.round(((allBatches ? offset : s.checkedCount) / (allBatches ? totalPorts : s.checkedCount || 1)) * 100))
-        : 100;
-      progressBar.style.width = pct + "%";
-      progressPct.textContent = pct + "%";
-      appendSyncResults(s.details);
-      renderSyncModal();
-      if (!allBatches || !s.hasMore) break;
-    } while (true);
-
-    progressText.textContent = allBatches
-      ? `Revisión completada: ${offset} fuentes analizadas. Las actualizaciones todavía no se aplicaron.`
-      : `Completado: ${totalChecked} revisados · ${totalUpdated} actualizados · ${totalDown} caídos.`;
-    if (!allBatches) {
+      hydrateServerState(res, true);
+      const s = res.sync || {};
+      progressText.textContent = `Completado: ${s.checkedCount || 0} revisados · ${s.updatedCount || 0} actualizados · ${s.downCount || 0} caídos.`;
       progressBar.style.width = "100%";
       progressPct.textContent = "100%";
+      appendSyncResults(s.details || []);
+      await refreshSyncStage();
+      renderSidebar();
+      renderEditor();
+      return;
     }
+
+    const previous = await api("/api/sync-stage");
+    if (previous.stage?.status === "completed") {
+      await refreshSyncStage();
+      progressText.textContent = "La revisión ya está completa. Aplicá las actualizaciones detectadas.";
+      return;
+    }
+
+    const queued = await api("/api/sync-queue", { method: "POST", body: "{}" });
+    let stage = queued.stage || previous.stage || null;
+    progressText.textContent = stage?.status === "scanning"
+      ? `Reanudando revisión desde ${stage.nextOffset || 0} / ${stage.totalSyncPorts || 0}…`
+      : "Trabajo enviado a la cola. El servidor continuará aunque cierres esta ventana…";
+
+    let idlePolls = 0;
+    while (true) {
+      await new Promise(resolve => setTimeout(resolve, 2500));
+      const status = await api("/api/sync-stage");
+      stage = status.stage;
+      if (!stage) {
+        idlePolls++;
+        if (idlePolls > 12) throw new Error("La cola no inició el procesamiento. Revisá la configuración del consumidor.");
+        continue;
+      }
+      idlePolls = 0;
+      const checked = Number(stage.checkedCount || 0);
+      const total = Number(stage.totalSyncPorts || 0);
+      const pct = total ? Math.min(100, Math.round((Number(stage.nextOffset || 0) / total) * 100)) : 0;
+      progressBar.style.width = pct + "%";
+      progressPct.textContent = pct + "%";
+      progressText.textContent = stage.status === "completed"
+        ? `Revisión completa: ${checked} fuentes · ${stage.updatedCount || 0} con cambios · ${stage.errorCount || 0} errores. Pendiente de aplicar.`
+        : `Procesando en segundo plano: ${checked} / ${total} fuentes · ${stage.updatedCount || 0} cambios detectados · ${stage.errorCount || 0} errores.`;
+      if (stage.status === "completed") break;
+    }
+
     await refreshSyncStage();
+    appendSyncResults((stage.details || []).slice(-40));
+    renderSyncModal();
     renderSidebar();
     renderEditor();
   } catch (error) {
     progressText.textContent = "Error durante sincronización: " + error.message;
-    if (allBatches) {
-      const stage = await refreshSyncStage();
-      if (stage?.status === "scanning") {
-        progressText.textContent += " · Progreso guardado; volvé a pulsar «Sincronizar todo» para reanudar.";
-      }
-    }
+    await refreshSyncStage();
   } finally {
     btnBatch.disabled = false;
     btnAll.disabled = false;
