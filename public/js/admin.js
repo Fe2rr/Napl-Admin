@@ -681,7 +681,7 @@ function renderEditor() {
   const steamStatusHtml = steamStatus.text ? '<div class="autofill-status ' + esc(steamStatus.state || "") + '"><span>' + esc(steamStatus.text) + "</span>" + (steamStatus.undo ? '<button type="button" class="inline-link-btn" id="undo-steam">Deshacer</button>' : "") + "</div>" + (steamStatus.diff ? '<div class="autofill-diff-banner"><span>Steam tiene valores distintos en: ' + esc(steamStatus.diff.fields.join(", ")) + '</span><div class="autofill-diff-actions"><button type="button" class="inline-link-btn accent" id="apply-steam-diff">Aplicar todos</button><button type="button" class="inline-link-btn" id="dismiss-steam-diff">Conservar actuales</button></div></div>' : "") : "";
 
   const lbDiffHtml = launchboxStatus.diff
-    ? '<div class="autofill-diff-banner"><span>LaunchBox tiene valores distintos en: ' +
+    ? '<div class="autofill-diff-banner"><span>La fuente tiene valores distintos en: ' +
       esc(launchboxStatus.diff.fields.join(", ")) +
       '</span><div class="autofill-diff-actions"><button type="button" class="inline-link-btn accent" id="apply-launchbox-diff">Aplicar todos</button><button type="button" class="inline-link-btn" id="dismiss-launchbox-diff">Conservar actuales</button></div></div>'
     : "";
@@ -1110,7 +1110,7 @@ function bindEditorEvents(root, game) {
     if (!launchboxStatus.undo) return;
     Object.assign(game, launchboxStatus.undo);
     selectedSlug = game.slug;
-    launchboxStatus = { state: "", text: "Autocompletado de LaunchBox revertido.", diff: null, undo: null };
+    launchboxStatus = { state: "", text: "Autocompletado de la fuente revertido.", diff: null, undo: null };
     renderEditor();
     renderSidebar();
     markUnsavedAndSchedule();
