@@ -998,7 +998,7 @@ function bindEditorEvents(root, game) {
   $("save-game-db")?.addEventListener("click", async () => {
     const btn = $("save-game-db");
     btn.disabled = true;
-    btn.textContent = "Guardando y publicando…";
+    btn.textContent = "Guardando en catálogo privado…";
     try {
       await saveCurrentGame({ silent: false });
     } finally {
@@ -1365,7 +1365,8 @@ async function refreshSyncStage() {
     applyBtn.disabled = !stage || stage.status !== "completed" || !Object.keys(stage.updates || {}).length;
     if (stage && stage.status === "scanning") {
       $("sync-progress-wrap").hidden = false;
-      $("sync-progress-text").textContent = `Revisión guardada: ${stage.checkedCount || 0} / ${stage.totalSyncPorts || 0} fuentes. Podés reanudarla.`;
+      const failureText = stage.lastError?.message ? ` Último fallo en offset ${stage.lastError.offset}: ${stage.lastError.message}` : "";
+      $("sync-progress-text").textContent = `Revisión guardada: ${stage.checkedCount || 0} / ${stage.totalSyncPorts || 0} fuentes. Podés reanudarla.${failureText}`;
       const pct = stage.totalSyncPorts ? Math.round((stage.nextOffset / stage.totalSyncPorts) * 100) : 0;
       $("sync-progress-bar").style.width = pct + "%";
       $("sync-progress-pct").textContent = pct + "%";
