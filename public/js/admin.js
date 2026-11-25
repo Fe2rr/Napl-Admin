@@ -1356,6 +1356,32 @@ function appendSyncResults(items) {
   }
 }
 
+async function refreshSyncStage() {
+  const applyBtn = $("apply-sync-updates");
+  if (!applyBtn) return null;
+  try {
+    const result = await api("/api/sync-stage");
+    const stage = result.stage;
+    applyBtn.disabled = !stage || stage.status !== "completed" || !Object.keys(stage.updates || {}).length;
+    if (stage && stage.status === "scanning") {
+      $("sync-progress-wrap").hidden = false;
+      $("sync-progress-text").textContent = `Revisión guardada: ${stage.checkedCount || 0} / ${stage.totalSyncPorts || 0} fuentes. Podés reanudarla.`;
+      const pct = stage.totalSyncPorts ? Math.round((stage.nextOffset / stage.totalSyncPorts) * 100) : 0;
+      $("sync-progress-bar").style.width = pct + "%";
+      $("sync-progress-pct").textContent = pct + "%";
+    } else if (stage && stage.status === "completed") {
+      $("sync-progress-wrap").hidden = false;
+      $("sync-progress-text").textContent = `Revisión completa: ${stage.checkedCount || 0} fuentes · ${stage.updatedCount || 0} con cambios detectados. Pendiente de aplicar.`;
+      $("sync-progress-bar").style.width = "100%";
+      $("sync-progress-pct").textContent = "100%";
+    }
+    return stage;
+  } catch (error) {
+    applyBtn.disabled = true;
+    return null;
+  }
+}
+
 async function runBatchSync(allBatches = false) {
   const btnBatch = $("run-sync-batch");
   const btnAll = $("run-sync-all");
@@ -1377,6 +1403,15 @@ async function runBatchSync(allBatches = false) {
   let totalDown = 0;
 
   try {
+    if (allBatches) {
+      const previous = await api("/api/sync-stage");
+      if (previous.stage?.status === "completed") {
+        await refreshSyncStage();
+        progressText.textContent = "La revisión ya está completa. Aplicá las actualizaciones detectadas.";
+        return;
+      }
+      if (previous.stage?.status === "scanning") offset = Number(previous.stage.nextOffset || 0);
+    }
     do {
       progressText.textContent = allBatches
         ? `Revisando fuentes (GitHub, GitLab y Play Store) desde #${offset + 1}…`
@@ -1387,6 +1422,7 @@ async function runBatchSync(allBatches = false) {
           limit: 20,
           offset,
           useOffset: allBatches,
+          stageOnly: allBatches,
         }),
       });
       hydrateServerState(res, true);
@@ -1404,22 +1440,56 @@ async function runBatchSync(allBatches = false) {
       progressPct.textContent = pct + "%";
       appendSyncResults(s.details);
       renderSyncModal();
-
       if (!allBatches || !s.hasMore) break;
     } while (true);
 
-    progressText.textContent = `Completado: ${totalChecked} revisados · ${totalUpdated} actualizados · ${totalDown} caídos.`;
-    progressBar.style.width = "100%";
-    progressPct.textContent = "100%";
+    progressText.textContent = allBatches
+      ? `Revisión completada: ${offset} fuentes analizadas. Las actualizaciones todavía no se aplicaron.`
+      : `Completado: ${totalChecked} revisados · ${totalUpdated} actualizados · ${totalDown} caídos.`;
+    if (!allBatches) {
+      progressBar.style.width = "100%";
+      progressPct.textContent = "100%";
+    }
+    await refreshSyncStage();
     renderSidebar();
     renderEditor();
   } catch (error) {
     progressText.textContent = "Error durante sincronización: " + error.message;
+    if (allBatches) {
+      const stage = await refreshSyncStage();
+      if (stage?.status === "scanning") {
+        progressText.textContent += " · Progreso guardado; volvé a pulsar «Sincronizar todo» para reanudar.";
+      }
+    }
   } finally {
     btnBatch.disabled = false;
     btnAll.disabled = false;
   }
 }
+
+$("apply-sync-updates")?.addEventListener("click", async () => {
+  if (!confirm("Se aplicarán al catálogo privado las actualizaciones detectadas durante la revisión. La publicación pública seguirá siendo manual. ¿Continuar?")) return;
+  const btn = $("apply-sync-updates");
+  btn.disabled = true;
+  btn.textContent = "Aplicando…";
+  try {
+    const result = await api("/api/sync-apply", { method: "POST", body: "{}" });
+    hydrateServerState(result, true);
+    appendSyncResults((result.stage?.details || []).slice(0, 40));
+    $("sync-progress-text").textContent = `Aplicadas ${result.appliedCount} actualizaciones. Publicación pública pendiente de realizar manualmente.`;
+    $("sync-progress-pct").textContent = "100%";
+    $("sync-progress-bar").style.width = "100%";
+    await refreshSyncStage();
+    renderSyncModal();
+    renderSidebar();
+    renderEditor();
+  } catch (error) {
+    $("sync-progress-text").textContent = "No se pudieron aplicar las actualizaciones: " + error.message;
+    btn.disabled = false;
+  } finally {
+    btn.textContent = "Aplicar actualizaciones a la DB";
+  }
+});
 
 // Global UI Bindings
 $("login-form").addEventListener("submit", async (event) => {
@@ -1511,6 +1581,7 @@ $("new-game-button").addEventListener("click", () => createNewGame(""));
 $("sync-github-button").addEventListener("click", () => {
   renderSyncModal();
   $("sync-modal").showModal();
+  refreshSyncStage();
 });
 
 $("close-sync-modal").addEventListener("click", () => {
