@@ -17,9 +17,9 @@
 <body>
   <section id="login-view" class="login-shell">
     <form id="login-form" class="login-card">
-      <div class="brand-mark">NAPL <span>ADMIN · D1</span></div>
+      <div class="brand-mark">NAPL <span>ADMIN · JSON</span></div>
       <h1>Panel de catálogo</h1>
-      <p>Gestioná juegos, ports y sincronización automática con GitHub, GitLab, Play Store y LaunchBox sobre Cloudflare D1.</p>
+      <p>Gestioná juegos, ports y sincronización automática con GitHub, GitLab, Play Store y LaunchBox. El catálogo se guarda como JSON versionado en GitHub y se publica mediante Cloudflare Pages.</p>
       <label for="admin-password">Contraseña</label>
       <input id="admin-password" type="password" autocomplete="current-password" required>
       <button class="button primary full" type="submit">Ingresar</button>
@@ -30,10 +30,10 @@
 
   <main id="admin-view" class="admin-shell" hidden>
     <header class="topbar">
-      <div class="brand-mark">NAPL <span>ADMIN · D1</span></div>
+      <div class="brand-mark">NAPL <span>ADMIN · JSON</span></div>
       <div class="topbar-state">
         <span id="state-dot" class="state-dot"></span>
-        <span id="save-state">Cargando base de datos…</span>
+        <span id="save-state">Cargando catálogo…</span>
       </div>
       <div class="topbar-actions">
         <button id="sync-github-button" class="button secondary" type="button">Sincronizar fuentes</button>
@@ -73,7 +73,7 @@
         <div id="empty-editor" class="empty-state">
           <div class="empty-icon">⌘</div>
           <h2>Seleccioná un juego</h2>
-          <p>Elegí un juego de la lista o creá uno nuevo para editar y guardar directo en D1.</p>
+          <p>Elegí un juego de la lista o creá uno nuevo para editar el catálogo.</p>
         </div>
         <div id="game-editor" hidden></div>
       </section>
