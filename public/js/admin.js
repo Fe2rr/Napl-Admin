@@ -47,6 +47,7 @@ let resolveQueuedSave = null;
 
 // Ephemeral per-editor UI states (cleared on switch)
 let launchboxStatus = { state: "", text: "", diff: null, undo: null };
+let steamStatus = { state: "", text: "", diff: null, undo: null };
 const portUiState = new Map();
 const persistedSlugs = new WeakMap();
 
@@ -176,6 +177,9 @@ function providerLabel(provider) {
   if (provider === "github") return "GitHub";
   return "Fuente";
 }
+
+function looksLikeSteamUrl(value) { return /store\.steampowered\.com\/app\/\d+/i.test(String(value || "").trim()) || /^\d+$/.test(String(value || "").trim()); }
+
 
 function looksLikeLaunchboxUrl(value) {
   return /gamesdb\.launchbox-app\.com\//i.test(String(value || "").trim());
@@ -670,6 +674,8 @@ function renderEditor() {
       "</div>"
     : "";
 
+  const steamStatusHtml = steamStatus.text ? '<div class="autofill-status ' + esc(steamStatus.state || "") + '"><span>' + esc(steamStatus.text) + "</span>" + (steamStatus.undo ? '<button type="button" class="inline-link-btn" id="undo-steam">Deshacer</button>' : "") + "</div>" + (steamStatus.diff ? '<div class="autofill-diff-banner"><span>Steam tiene valores distintos en: ' + esc(steamStatus.diff.fields.join(", ")) + '</span><div class="autofill-diff-actions"><button type="button" class="inline-link-btn accent" id="apply-steam-diff">Aplicar todos</button><button type="button" class="inline-link-btn" id="dismiss-steam-diff">Conservar actuales</button></div></div>' : "") : "";
+
   const lbDiffHtml = launchboxStatus.diff
     ? '<div class="autofill-diff-banner"><span>LaunchBox tiene valores distintos en: ' +
       esc(launchboxStatus.diff.fields.join(", ")) +
@@ -686,16 +692,16 @@ function renderEditor() {
     ' ports</p></div><div class="editor-heading-actions"><button class="button danger-button" id="delete-game" type="button">Eliminar juego</button></div></div>' +
     '<section class="game-launchbox-section"><div class="autofill-box"><div class="autofill-row">' +
     fieldHtml(
-      "URL de LaunchBox GamesDB",
-      game.launchboxUrl || "",
-      'data-game-field="launchboxUrl"',
+      "URL de Steam o LaunchBox",
+      game.steamUrl || game.launchboxUrl || "",
+      'id="metadata-source-url"',
       "url",
       "",
-      "https://gamesdb.launchbox-app.com/games/details/..."
+      "Pegá una URL de Steam Store o LaunchBox GamesDB"
     ) +
-    '<button type="button" class="button secondary small" id="fetch-launchbox-btn">Obtener datos</button></div>' +
-    lbStatusHtml +
-    lbDiffHtml +
+    '<button type="button" class="button secondary small" id="fetch-metadata-btn">Obtener datos</button></div>' +
+    '<p class="admin-game-helper">La fuente se detecta automáticamente según el enlace.</p>' +
+    lbStatusHtml + lbDiffHtml + steamStatusHtml +
     '</div></section>' +
     '<section class="admin-game-hero"><div class="admin-cover-column"><div class="admin-cover-frame"><img class="cover-preview" id="cover-preview" src="' +
     esc(game.coverUrl || "") +
@@ -802,6 +808,24 @@ async function saveCurrentGame({ silent = false } = {}) {
     }
   }
 }
+
+async function runSteamAutofill(game, urlValue) {
+  const url = String(urlValue || "").trim();
+  if (!looksLikeSteamUrl(url)) { steamStatus = { state: "error", text: "Pegá una URL válida de Steam Store.", diff: null, undo: null }; renderEditor(); return; }
+  steamStatus = { state: "loading", text: "Consultando ficha de Steam…", diff: null, undo: null }; renderEditor();
+  try {
+    const res = await api("/api/lookup/steam", { method: "POST", body: JSON.stringify({ url }) });
+    const steam = res.steam;
+    const snapshot = { name: game.name, slug: game.slug, year: game.year, genre: game.genre, description: game.description, coverUrl: game.coverUrl, steamUrl: game.steamUrl, launchboxUrl: game.launchboxUrl };
+    game.steamUrl = steam.steamUrl || url;
+    const fresh = /^nuevo juego/i.test(String(game.name || "").trim()), diffValues = {}, diffFields = [];
+    const tryFill = (key, label, nextVal, force = false) => { const val = String(nextVal || "").trim(); if (!val) return; const cur = String(game[key] || "").trim(); if (!cur || cur === "-" || force) game[key] = val; else if (cur !== val) { diffValues[key] = val; diffFields.push(label); } };
+    tryFill("name", "Nombre", steam.name, fresh); tryFill("year", "Año", steam.year); tryFill("genre", "Género", steam.genre); tryFill("description", "Descripción", steam.description); tryFill("coverUrl", "Portada", steam.coverUrl);
+    steamStatus = { state: "ok", text: "Steam cargado: " + steam.name + (steam.year ? " (" + steam.year + ")" : ""), diff: diffFields.length ? { fields: diffFields, values: diffValues } : null, undo: snapshot };
+    renderEditor(); renderSidebar(); markUnsavedAndSchedule();
+  } catch (error) { steamStatus = { state: "error", text: error.message, diff: null, undo: null }; renderEditor(); }
+}
+
 
 async function runLaunchboxAutofill(game, urlValue) {
   const url = String(urlValue || "").trim();
@@ -1010,22 +1034,29 @@ function bindEditorEvents(root, game) {
     }
   });
 
-  // LaunchBox controls
-  const lbInput = root.querySelector('[data-game-field="launchboxUrl"]');
-  lbInput?.addEventListener("paste", (e) => {
-    const pasted = e.clipboardData?.getData("text") || "";
-    setTimeout(() => {
-      const value = pasted.trim() || lbInput.value.trim();
+  // Unified metadata autofill: detect Steam or LaunchBox from the same URL field.
+  const metadataInput = $("metadata-source-url");
+  const runMetadataLookup = (rawValue) => {
+    const value = String(rawValue || "").trim();
+    if (looksLikeSteamUrl(value)) {
+      game.steamUrl = value;
+      runSteamAutofill(game, value);
+    } else if (looksLikeLaunchboxUrl(value)) {
       game.launchboxUrl = value;
-      if (looksLikeLaunchboxUrl(value)) {
-        runLaunchboxAutofill(game, value);
-      }
-    }, 0);
+      runLaunchboxAutofill(game, value);
+    } else {
+      steamStatus = { state: "error", text: "Pegá una URL válida de Steam Store o LaunchBox GamesDB.", diff: null, undo: null };
+      renderEditor();
+    }
+  };
+  metadataInput?.addEventListener("paste", (e) => {
+    const pasted = e.clipboardData?.getData("text") || "";
+    setTimeout(() => runMetadataLookup(pasted || metadataInput.value), 0);
   });
-
-  $("fetch-launchbox-btn")?.addEventListener("click", () => {
-    runLaunchboxAutofill(game, lbInput?.value || game.launchboxUrl);
-  });
+  $("fetch-metadata-btn")?.addEventListener("click", () => runMetadataLookup(metadataInput?.value));
+  $("apply-steam-diff")?.addEventListener("click", () => { if (!steamStatus.diff) return; Object.assign(game, steamStatus.diff.values); steamStatus.diff = null; renderEditor(); renderSidebar(); markUnsavedAndSchedule(); });
+  $("dismiss-steam-diff")?.addEventListener("click", () => { steamStatus.diff = null; renderEditor(); });
+  $("undo-steam")?.addEventListener("click", () => { if (!steamStatus.undo) return; Object.assign(game, steamStatus.undo); steamStatus = { state: "", text: "Autocompletado de Steam revertido.", diff: null, undo: null }; renderEditor(); renderSidebar(); markUnsavedAndSchedule(); });
 
   $("apply-launchbox-diff")?.addEventListener("click", async () => {
     if (!launchboxStatus.diff) return;
@@ -1459,6 +1490,7 @@ async function createNewGame(presetPlatform = "") {
     genre: "",
     description: "",
     launchboxUrl: "",
+    steamUrl: "",
     platform: cleanPlatform,
     platforms: cleanPlatform ? [cleanPlatform] : [],
     ports: [],
@@ -1467,6 +1499,7 @@ async function createNewGame(presetPlatform = "") {
   catalog.games.unshift(newGame);
   selectedSlug = slug;
   launchboxStatus = { state: "", text: "", diff: null, undo: null };
+  steamStatus = { state: "", text: "", diff: null, undo: null };
   portUiState.clear();
   markUnsavedAndSchedule();
   renderSidebar();
