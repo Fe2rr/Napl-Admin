@@ -1399,7 +1399,7 @@ async function runBatchSync(allBatches = false) {
 // Global UI Bindings
 $("login-form").addEventListener("submit", async (event) => {
   event.preventDefault();
-  $("login-message").className = "message";
+  $("login-message").className = "message verifying";
   $("login-message").textContent = "Verificando…";
   try {
     const result = await api("/api/login", {
@@ -1415,6 +1415,7 @@ $("login-form").addEventListener("submit", async (event) => {
     showAdmin();
     await loadCatalog();
   } catch (error) {
+    $("login-message").className = "message";
     $("login-message").textContent = error.message;
   }
 });
