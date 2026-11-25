@@ -185,6 +185,10 @@ function looksLikeLaunchboxUrl(value) {
   return /gamesdb\.launchbox-app\.com\//i.test(String(value || "").trim());
 }
 
+function looksLikeItchioUrl(value) {
+  try { const u = new URL(String(value || "").trim()); return (u.hostname === "itch.io" || u.hostname.endsWith(".itch.io")) && u.pathname.split("/").filter(Boolean).length >= 1; } catch { return false; }
+}
+
 function formatShortDate(iso) {
   if (!iso) return "—";
   const d = new Date(iso);
@@ -692,12 +696,12 @@ function renderEditor() {
     ' ports</p></div><div class="editor-heading-actions"><button class="button danger-button" id="delete-game" type="button">Eliminar juego</button></div></div>' +
     '<section class="game-launchbox-section"><div class="autofill-box"><div class="autofill-row">' +
     fieldHtml(
-      "URL de Steam o LaunchBox",
-      game.steamUrl || game.launchboxUrl || "",
+      "URL de Steam, LaunchBox o itch.io",
+      game.steamUrl || game.launchboxUrl || game.itchUrl || "",
       'id="metadata-source-url"',
       "url",
       "",
-      "Pegá una URL de Steam Store o LaunchBox GamesDB"
+      "Pegá una URL de Steam, LaunchBox GamesDB o itch.io"
     ) +
     '<button type="button" class="button secondary small" id="fetch-metadata-btn">Obtener datos</button></div>' +
     '<p class="admin-game-helper">La fuente se detecta automáticamente según el enlace.</p>' +
@@ -716,7 +720,7 @@ function renderEditor() {
     '<p class="admin-game-helper">La plataforma pertenece a esta ficha. Los ports se guardan dentro de ella.</p>' +
     '</div></section>' +
 
-    '<details class="admin-game-data-tab"><summary><span><strong>Datos del juego</strong><small>Portada, año, género, plataforma y descripción obtenidos de LaunchBox</small></span><span class="data-tab-hint">Editar datos</span></summary>' +
+    '<details class="admin-game-data-tab"><summary><span><strong>Datos del juego</strong><small>Portada, año, género y descripción obtenidos de la fuente</small></span><span class="data-tab-hint">Editar datos</span></summary>' +
     '<div class="admin-game-data-panel">' +
     fieldHtml("URL de portada", game.coverUrl, 'data-game-field="coverUrl"', "url") +
     '<div class="admin-game-meta-grid">' +
@@ -892,6 +896,39 @@ async function runLaunchboxAutofill(game, urlValue) {
 }
 
 
+async function runItchioAutofill(game, urlValue) {
+  const url = String(urlValue || "").trim();
+  if (!looksLikeItchioUrl(url)) {
+    launchboxStatus = { state: "error", text: "Pegá una URL válida de itch.io.", diff: null, undo: null };
+    renderEditor(); return;
+  }
+  launchboxStatus = { state: "loading", text: "Consultando ficha de itch.io…", diff: null, undo: null };
+  renderEditor();
+  try {
+    const res = await api("/api/lookup/itchio", { method: "POST", body: JSON.stringify({ url }) });
+    const itch = res.itchio;
+    const snapshot = { name: game.name, slug: game.slug, year: game.year, genre: game.genre, description: game.description, coverUrl: game.coverUrl, itchUrl: game.itchUrl };
+    game.itchUrl = itch.itchUrl || url;
+    const fresh = /^nuevo juego/i.test(String(game.name || "").trim()), diffValues = {}, diffFields = [];
+    const tryFill = (key, label, nextVal, force = false) => {
+      const val = String(nextVal || "").trim(); if (!val) return;
+      const cur = String(game[key] || "").trim();
+      if (!cur || cur === "-" || force) game[key] = val;
+      else if (cur !== val) { diffValues[key] = val; diffFields.push(label); }
+    };
+    tryFill("name", "Nombre", itch.name, fresh);
+    tryFill("year", "Año", itch.year);
+    tryFill("genre", "Género", itch.genre);
+    tryFill("description", "Descripción", itch.description);
+    tryFill("coverUrl", "Portada", itch.coverUrl);
+    launchboxStatus = { state: "ok", text: "itch.io cargado: " + itch.name + (itch.year ? " (" + itch.year + ")" : ""), diff: diffFields.length ? { fields: diffFields, values: diffValues } : null, undo: snapshot };
+    renderEditor(); renderSidebar(); markUnsavedAndSchedule();
+  } catch (error) {
+    launchboxStatus = { state: "error", text: error.message, diff: null, undo: null }; renderEditor();
+  }
+}
+
+
 async function runSourceAutofill(game, index, rawUrl) {
   const port = game.ports[index];
   if (!port || !looksLikeSyncSourceUrl(rawUrl)) {
@@ -1038,8 +1075,11 @@ function bindEditorEvents(root, game) {
     } else if (looksLikeLaunchboxUrl(value)) {
       game.launchboxUrl = value;
       runLaunchboxAutofill(game, value);
+    } else if (looksLikeItchioUrl(value)) {
+      game.itchUrl = value;
+      runItchioAutofill(game, value);
     } else {
-      steamStatus = { state: "error", text: "Pegá una URL válida de Steam Store o LaunchBox GamesDB.", diff: null, undo: null };
+      steamStatus = { state: "error", text: "Pegá una URL válida de Steam Store, LaunchBox GamesDB o itch.io.", diff: null, undo: null };
       renderEditor();
     }
   };
