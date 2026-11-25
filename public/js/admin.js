@@ -1470,9 +1470,6 @@ async function createNewGame(presetPlatform = "") {
   markUnsavedAndSchedule();
   renderSidebar();
   renderEditor();
-  const titleInput = $("game-editor")?.querySelector('[data-game-field="name"]');
-  titleInput?.focus();
-  titleInput?.select();
   setNotice(
     cleanPlatform
       ? `Nuevo juego creado en ${cleanPlatform}. Completá los datos y pulsá «Guardar cambios».`
