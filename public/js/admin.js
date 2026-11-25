@@ -1419,13 +1419,13 @@ async function runBatchSync(allBatches = false) {
       const res = await api("/api/sync-sources", {
         method: "POST",
         body: JSON.stringify({
-          limit: 20,
+          limit: allBatches ? 5 : 20,
           offset,
           useOffset: allBatches,
           stageOnly: allBatches,
         }),
       });
-      hydrateServerState(res, true);
+      if (!allBatches) hydrateServerState(res, true);
       const s = res.sync;
       totalChecked += s.checkedCount;
       totalUpdated += s.updatedCount;
