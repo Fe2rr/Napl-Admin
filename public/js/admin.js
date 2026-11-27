@@ -1,4 +1,4 @@
-import { resolveCatalogApiBase } from "./lib/config.js";
+import { resolveCatalogApiBase, resolveCommunityDashboardUrl } from "./lib/config.js";
 
 const API = resolveCatalogApiBase();
 const $ = (id) => document.getElementById(id);
@@ -1737,7 +1737,7 @@ async function loadCommunityDashboard() {
   errorBox.hidden = true;
   content.hidden = true;
   try {
-    const response = await fetch("https://gsksanvcdbdoevairzpj.supabase.co/functions/v1/admin-dashboard", {
+    const response = await fetch(resolveCommunityDashboardUrl(), {
       method: "GET",
       headers: { Authorization: "Bearer " + token },
       cache: "no-store",
