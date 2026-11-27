@@ -3,17 +3,16 @@
  */
 
 export const RATINGS_API_BASE =
-    "https://gsksanvcdbdoevairzpj.supabase.co/functions/v1/ratings";
+    "https://napl-prueba.vercel.app/api/ratings";
 
 export const COMPATIBILITY_API_URL =
-    "https://gsksanvcdbdoevairzpj.supabase.co/functions/v1/compatibility";
+    "https://napl-prueba.vercel.app/api/compatibility";
 
 export const REPORT_LINK_API_URL =
-    "https://gsksanvcdbdoevairzpj.supabase.co/functions/v1/report-link";
-
+    "https://napl-prueba.vercel.app/api/report-link";
 
 export const WORKER_API_BASE =
-    "https://napl-admin-api.federicoxastro.workers.dev";
+    "https://napl-prueba.vercel.app";
 
 export function resolveCatalogApiBase() {
     if (typeof window === "undefined") return "";
@@ -26,6 +25,10 @@ export function resolveCatalogApiBase() {
         return "";
     }
     return WORKER_API_BASE;
+}
+
+export function resolveCommunityDashboardUrl() {
+    return "https://napl-prueba.vercel.app/api/admin-dashboard";
 }
 
 export const RATING_TOKEN_STORAGE_KEY = "napl_rating_token_v1";
